@@ -3,7 +3,7 @@ module credentials::certifications {
     use sui::sui::SUI;
     use sui::balance::{Self, Balance};
     use sui::linked_table::{Self, LinkedTable};
-    use std::string::String;
+    use std::string::{Self, String};
 
     // Error codes
     const ENotAuthorized: u64 = 0;
@@ -228,27 +228,38 @@ module credentials::certifications {
         transfer::transfer(certificate, holder_address);
     }
 
-    // public fun verify_certificate(
-    //     platform: &mut Platform,
-    //     certificate: &Certificate,
-    //     notes: String,
-    //     valid_period: u64,
-    //     payment: Coin<SUI>,
-    //     ctx: &mut TxContext
-    // ) {
-    //     let payment_value = coin::value(&payment);
-    //     assert!(payment_value >= platform.verification_fee, EInvalidCredential);
+    public fun verify_certificate(
+        platform: &mut Platform,
+        holder: &mut CredentialHolder,
+        certificate: &Certificate,
+        notes: String,
+        valid_period: u64,
+        payment: Coin<SUI>,
+        ctx: &mut TxContext
+    ) {
+        let payment_value = coin::value(&payment);
+        assert!(payment_value >= platform.verification_fee, EInvalidCredential);
+        assert!(holder.holder == certificate.holder, ENotAuthorized);
         
-    //     let verification = Verification {
-    //         verifier: tx_context::sender(ctx),
-    //         verification_date: tx_context::epoch(ctx),
-    //         valid_until: tx_context::epoch(ctx) + valid_period,
-    //         verification_notes: notes
-    //     };
+        let verification = Verification {
+            verifier: tx_context::sender(ctx),
+            verification_date: tx_context::epoch(ctx),
+            valid_until: tx_context::epoch(ctx) + valid_period,
+            verification_notes: notes
+        };
 
-    //     let payment_balance = coin::into_balance(payment);
-    //     balance::join(&mut platform.revenue, payment_balance);
-    // }
+        // Store verification in the holder's verifications table
+        let verification_id = string::utf8(b"verification_");
+        linked_table::push_back(
+            &mut holder.verifications, 
+            verification_id,
+            verification
+        );
+
+        // Process payment
+        let payment_balance = coin::into_balance(payment);
+        balance::join(&mut platform.revenue, payment_balance);
+    }
 
     // Gamification functions
     public fun create_skill_tree(ctx: &mut TxContext) {
@@ -361,32 +372,32 @@ module credentials::certifications {
         transfer::share_object(challenge);
     }
 
-    // public fun add_points(
-    //     reputation: &mut ReputationPoints,
-    //     amount: u64,
-    //     source: vector<u8>,
-    //     ctx: &mut TxContext
-    // ) {
-    //     reputation.total_points = reputation.total_points + amount;
-    //     reputation.level = calculate_level(reputation.total_points);
+    public fun add_points(
+        reputation: &mut ReputationPoints,
+        amount: u64,
+        source: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        reputation.total_points = reputation.total_points + amount;
+        reputation.level = calculate_level(reputation.total_points);
         
-    //     let entry = PointEntry {
-    //         amount,
-    //         source: string::utf8(source),
-    //         timestamp: tx_context::epoch(ctx),
-    //         category: string::utf8(b"Achievement")
-    //     };
+        let entry = PointEntry {
+            amount,
+            source: string::utf8(source),
+            timestamp: tx_context::epoch(ctx),
+            category: string::utf8(b"Achievement")
+        };
         
-    //     linked_table::push_back(
-    //         &mut reputation.point_history,
-    //         string::utf8(source),
-    //         entry
-    //     );
-    // }
+        linked_table::push_back(
+            &mut reputation.point_history,
+            string::utf8(source),
+            entry
+        );
+    }
 
-    // fun calculate_level(points: u64): u64 {
-    //     points / 100 + 1
-    // }
+    fun calculate_level(points: u64): u64 {
+        points / 100 + 1
+    }
 
     public fun award_badge(
         reputation: &mut ReputationPoints,
@@ -406,18 +417,18 @@ module credentials::certifications {
         vector::push_back(&mut reputation.badges, badge);
     }
 
-    // public fun progress_learning_path(
-    //     learning_path: &mut LearningPath,
-    //     reputation: &mut ReputationPoints,
-    //     milestone_number: u64,
-    //     ctx: &mut TxContext
-    // ) {
-    //     let participant = tx_context::sender(ctx);
-    //     let milestone = linked_table::borrow_mut(&mut learning_path.milestones, milestone_number);
+    public fun progress_learning_path(
+        learning_path: &mut LearningPath,
+        reputation: &mut ReputationPoints,
+        milestone_number: u64,
+        ctx: &mut TxContext
+    ) {
+        let participant = tx_context::sender(ctx);
+        let milestone = linked_table::borrow_mut(&mut learning_path.milestones, milestone_number);
         
-    //     vector::push_back(&mut milestone.completed_by, participant);
-    //     add_points(reputation, milestone.reward_points, b"Learning Path Progress", ctx);
-    // }
+        vector::push_back(&mut milestone.completed_by, participant);
+        add_points(reputation, milestone.reward_points, b"Learning Path Progress", ctx);
+    }
 
     #[test_only]
     public fun test_init(ctx: &mut TxContext) {
