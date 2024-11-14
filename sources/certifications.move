@@ -4,11 +4,6 @@ module credentials::certifications {
     use sui::balance::{Self, Balance};
     use sui::linked_table::{Self, LinkedTable};
     use std::string::String;
-    use sui::object::{Self, ID, UID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
-    use std::vector;
-    use std::option::{Self, Option};
 
     // Error codes
     const ENotAuthorized: u64 = 0;
@@ -24,14 +19,14 @@ module credentials::certifications {
     const EInvalidEndorsement: u64 = 10;
 
     // Core structs
-    struct Platform has key {
+    public struct Platform has key {
         id: UID,
         admin: address,
         revenue: Balance<SUI>,
         verification_fee: u64
     }
 
-    struct Institution has key {
+    public struct Institution has key {
         id: UID,
         name: String,
         address: address,
@@ -40,7 +35,7 @@ module credentials::certifications {
         verified: bool
     }
 
-    struct Credential has key, store {
+    public struct Credential has key, store {
         id: UID,
         title: String,
         description: String,
@@ -51,14 +46,14 @@ module credentials::certifications {
         revoked: bool
     }
 
-    struct CredentialHolder has key {
+    public struct CredentialHolder has key {
         id: UID,
         holder: address,
         credentials: LinkedTable<String, Certificate>,
         verifications: LinkedTable<String, Verification>
     }
 
-    struct Certificate has key, store {
+    public struct Certificate has key, store {
         id: UID,
         credential_id: ID,
         holder: address,
@@ -67,7 +62,7 @@ module credentials::certifications {
         achievement_data: LinkedTable<String, String>
     }
 
-    struct Verification has store {
+    public struct Verification has store {
         verifier: address,
         verification_date: u64,
         valid_until: u64,
@@ -75,14 +70,14 @@ module credentials::certifications {
     }
 
     // Gamification structs
-    struct SkillTree has key {
+    public struct SkillTree has key {
         id: UID,
         skills: LinkedTable<String, Skill>,
         prerequisites: LinkedTable<String, vector<String>>,
         owner: address
     }
 
-    struct Skill has store {
+    public struct Skill has store {
         name: String,
         level: u64,
         experience: u64,
@@ -90,14 +85,14 @@ module credentials::certifications {
         endorsements: vector<Endorsement>
     }
 
-    struct Endorsement has store {
+    public struct Endorsement has store {
         endorser: address,
         weight: u64,
         timestamp: u64,
         notes: String
     }
 
-    struct Achievement has key, store {
+    public struct Achievement has key, store {
         id: UID,
         name: String,
         description: String,
@@ -107,7 +102,7 @@ module credentials::certifications {
         holders: vector<address>
     }
 
-    struct Challenge has key {
+    public struct Challenge has key {
         id: UID,
         name: String,
         description: String,
@@ -119,7 +114,7 @@ module credentials::certifications {
         completed_by: vector<address>
     }
 
-    struct ReputationPoints has key {
+    public struct ReputationPoints has key {
         id: UID,
         holder: address,
         total_points: u64,
@@ -128,14 +123,14 @@ module credentials::certifications {
         badges: vector<Badge>
     }
 
-    struct PointEntry has store {
+    public struct PointEntry has store {
         amount: u64,
         source: String,
         timestamp: u64,
         category: String
     }
 
-    struct Badge has store {
+    public struct Badge has store {
         name: String,
         category: String,
         level: u8,
@@ -143,7 +138,7 @@ module credentials::certifications {
         special_privileges: vector<String>
     }
 
-    struct LearningPath has key {
+    public struct LearningPath has key {
         id: UID,
         name: String,
         description: String,
@@ -153,7 +148,7 @@ module credentials::certifications {
         participants: vector<address>
     }
 
-    struct Milestone has store {
+    public struct Milestone has store {
         description: String,
         required_skills: vector<String>,
         reward_points: u64,
