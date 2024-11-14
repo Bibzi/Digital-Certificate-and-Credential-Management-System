@@ -10,16 +10,71 @@ module credentials::certifications {
     use std::vector;
     use std::option::{Self, Option};
 
-    // Additional error codes
+    // Error codes
+    const ENotAuthorized: u64 = 0;
+    const EInstitutionNotFound: u64 = 1;
+    const ECertificateNotFound: u64 = 2;
+    const EInvalidCredential: u64 = 3;
+    const EAlreadyVerified: u64 = 4;
+    const EExpiredCredential: u64 = 5;
     const EInsufficientPoints: u64 = 6;
     const EBadgeNotEarned: u64 = 7;
     const EChallengeNotActive: u64 = 8;
     const EPrerequisitesNotMet: u64 = 9;
     const EInvalidEndorsement: u64 = 10;
 
-    // Existing structs remain...
-    // Adding new structs for gamification
+    // Core structs
+    struct Platform has key {
+        id: UID,
+        admin: address,
+        revenue: Balance<SUI>,
+        verification_fee: u64
+    }
 
+    struct Institution has key {
+        id: UID,
+        name: String,
+        address: address,
+        credentials: LinkedTable<String, Credential>,
+        reputation_score: u64,
+        verified: bool
+    }
+
+    struct Credential has key, store {
+        id: UID,
+        title: String,
+        description: String,
+        issuer: address,
+        issue_date: u64,
+        expiry_date: Option<u64>,
+        metadata: LinkedTable<String, String>,
+        revoked: bool
+    }
+
+    struct CredentialHolder has key {
+        id: UID,
+        holder: address,
+        credentials: LinkedTable<String, Certificate>,
+        verifications: LinkedTable<String, Verification>
+    }
+
+    struct Certificate has key, store {
+        id: UID,
+        credential_id: ID,
+        holder: address,
+        issued_by: address,
+        issue_date: u64,
+        achievement_data: LinkedTable<String, String>
+    }
+
+    struct Verification has store {
+        verifier: address,
+        verification_date: u64,
+        valid_until: u64,
+        verification_notes: String
+    }
+
+    // Gamification structs
     struct SkillTree has key {
         id: UID,
         skills: LinkedTable<String, Skill>,
@@ -105,8 +160,102 @@ module credentials::certifications {
         completed_by: vector<address>
     }
 
-    // New functions for enhanced features
+    // Initialize platform
+    fun init(ctx: &mut TxContext) {
+        let platform = Platform {
+            id: object::new(ctx),
+            admin: tx_context::sender(ctx),
+            revenue: balance::zero(),
+            verification_fee: 100 // Base fee in SUI
+        };
+        transfer::share_object(platform);
+    }
 
+    // Core certification functions
+    public fun register_institution(
+        platform: &Platform,
+        name: String,
+        ctx: &mut TxContext
+    ) {
+        let institution = Institution {
+            id: object::new(ctx),
+            name,
+            address: tx_context::sender(ctx),
+            credentials: linked_table::new(ctx),
+            reputation_score: 0,
+            verified: false
+        };
+        transfer::transfer(institution, tx_context::sender(ctx));
+    }
+
+    public fun create_credential(
+        institution: &mut Institution,
+        title: String,
+        description: String,
+        expiry_period: Option<u64>,
+        ctx: &mut TxContext
+    ) {
+        assert!(institution.address == tx_context::sender(ctx), ENotAuthorized);
+        
+        let credential = Credential {
+            id: object::new(ctx),
+            title,
+            description,
+            issuer: institution.address,
+            issue_date: tx_context::epoch(ctx),
+            expiry_date: expiry_period,
+            metadata: linked_table::new(ctx),
+            revoked: false
+        };
+
+        linked_table::push_back(&mut institution.credentials, title, credential);
+    }
+
+    public fun issue_certificate(
+        institution: &Institution,
+        credential_title: String,
+        holder_address: address,
+        achievement_data: LinkedTable<String, String>,
+        ctx: &mut TxContext
+    ) {
+        assert!(institution.address == tx_context::sender(ctx), ENotAuthorized);
+        let credential = linked_table::borrow(&institution.credentials, credential_title);
+        
+        let certificate = Certificate {
+            id: object::new(ctx),
+            credential_id: object::id(credential),
+            holder: holder_address,
+            issued_by: institution.address,
+            issue_date: tx_context::epoch(ctx),
+            achievement_data
+        };
+
+        transfer::transfer(certificate, holder_address);
+    }
+
+    public fun verify_certificate(
+        platform: &mut Platform,
+        certificate: &Certificate,
+        notes: String,
+        valid_period: u64,
+        payment: Coin<SUI>,
+        ctx: &mut TxContext
+    ) {
+        let payment_value = coin::value(&payment);
+        assert!(payment_value >= platform.verification_fee, EInvalidCredential);
+        
+        let verification = Verification {
+            verifier: tx_context::sender(ctx),
+            verification_date: tx_context::epoch(ctx),
+            valid_until: tx_context::epoch(ctx) + valid_period,
+            verification_notes: notes
+        };
+
+        let payment_balance = coin::into_balance(payment);
+        balance::join(&mut platform.revenue, payment_balance);
+    }
+
+    // Gamification functions
     public fun create_skill_tree(ctx: &mut TxContext) {
         let skill_tree = SkillTree {
             id: object::new(ctx),
@@ -217,35 +366,6 @@ module credentials::certifications {
         transfer::share_object(challenge);
     }
 
-    public fun join_challenge(
-        challenge: &mut Challenge,
-        holder: &CredentialHolder,
-        ctx: &mut TxContext
-    ) {
-        let participant = tx_context::sender(ctx);
-        assert!(tx_context::epoch(ctx) >= challenge.start_time, EChallengeNotActive);
-        assert!(tx_context::epoch(ctx) <= challenge.end_time, EChallengeNotActive);
-        
-        // Verify required credentials
-        // (Implementation would check credentials against requirements)
-        
-        vector::push_back(&mut challenge.participants, participant);
-    }
-
-    public fun complete_challenge(
-        challenge: &mut Challenge,
-        reputation: &mut ReputationPoints,
-        ctx: &mut TxContext
-    ) {
-        let participant = tx_context::sender(ctx);
-        assert!(vector::contains(&challenge.participants, &participant), ENotAuthorized);
-        assert!(!vector::contains(&challenge.completed_by, &participant), EAlreadyVerified);
-        
-        // Add points to reputation
-        add_points(reputation, challenge.reward_points, b"Challenge Completion", ctx);
-        vector::push_back(&mut challenge.completed_by, participant);
-    }
-
     public fun add_points(
         reputation: &mut ReputationPoints,
         amount: u64,
@@ -253,8 +373,6 @@ module credentials::certifications {
         ctx: &mut TxContext
     ) {
         reputation.total_points = reputation.total_points + amount;
-        
-        // Update level based on points
         reputation.level = calculate_level(reputation.total_points);
         
         let entry = PointEntry {
@@ -272,8 +390,6 @@ module credentials::certifications {
     }
 
     fun calculate_level(points: u64): u64 {
-        // Example level calculation: level = sqrt(points/100)
-        // Simplified version:
         points / 100 + 1
     }
 
@@ -295,7 +411,6 @@ module credentials::certifications {
         vector::push_back(&mut reputation.badges, badge);
     }
 
-    // Function to progress in learning path
     public fun progress_learning_path(
         learning_path: &mut LearningPath,
         reputation: &mut ReputationPoints,
@@ -304,9 +419,6 @@ module credentials::certifications {
     ) {
         let participant = tx_context::sender(ctx);
         let milestone = linked_table::borrow_mut(&mut learning_path.milestones, milestone_number);
-        
-        // Verify milestone requirements are met
-        // (Implementation would check skills and other requirements)
         
         vector::push_back(&mut milestone.completed_by, participant);
         add_points(reputation, milestone.reward_points, b"Learning Path Progress", ctx);
