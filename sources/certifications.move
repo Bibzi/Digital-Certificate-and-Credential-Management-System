@@ -49,7 +49,7 @@ module credentials::certifications {
     public struct CredentialHolder has key {
         id: UID,
         holder: address,
-        credentials: LinkedTable<String, Certificate>,
+        // credentials: LinkedTable<String, Certificate>,
         verifications: LinkedTable<String, Verification>
     }
 
@@ -129,7 +129,7 @@ module credentials::certifications {
 
     public struct ReputationPoints has key {
         id: UID,
-        holder: address,
+        // holder: address,
         total_points: u64,
         point_history: LinkedTable<String, PointEntry>,
         level: u64,
@@ -195,7 +195,7 @@ module credentials::certifications {
 
     // Core certification functions
     public fun register_institution(
-        platform: &Platform,
+        _platform: &Platform,
         registry: &mut InstitutionRegistry,
         name: String,
         ctx: &mut TxContext
@@ -247,6 +247,15 @@ module credentials::certifications {
         };
 
         linked_table::push_back(&mut institution.credentials, title, credential);
+    }
+
+
+    // Function to check credential expiry
+    public fun check_credential_expiry(credential: &Credential, ctx: &mut TxContext) {
+        if (option::is_some(&credential.expiry_date)) {
+            let expiry = option::borrow(&credential.expiry_date);
+            assert!(tx_context::epoch(ctx) <= *expiry, EExpiredCredential);
+        }
     }
 
     // Validate institution exists before operations
@@ -424,14 +433,14 @@ module credentials::certifications {
         
         // Check prerequisites
         let prerequisites = linked_table::borrow(&skill_tree.prerequisites, skill_name);
-        let i = 0;
+        let mut i = 0;
         let len = vector::length(prerequisites);
         
         while (i < len) {
             let prereq_skill = vector::borrow(prerequisites, i);
             let skill = linked_table::borrow(&skill_tree.skills, *prereq_skill);
             assert!(skill.level > 0, EPrerequisitesNotMet);
-            // i = i + 1;
+            i = i + 1;
         };
         
         // Level up the skill
@@ -485,7 +494,7 @@ module credentials::certifications {
         description: String,
         required_skills: vector<String>,
         reward_points: u64,
-        ctx: &mut TxContext
+        _ctx: &mut TxContext
     ) {
         let milestone = Milestone {
             description,
@@ -592,26 +601,29 @@ module credentials::certifications {
     }
 
     // Enhanced badge verification function
-    // public fun verify_badge_access(
-    //     reputation: &ReputationPoints,
-    //     required_badge: String,
-    //     required_level: u8
-    // ) {
-    //     let has_badge = false;
-    //     let badges = &reputation.badges;
+    public fun verify_badge_access(
+        reputation: &ReputationPoints,
+        required_badge: String,
+        required_level: u8
+    ) {
+        let mut has_badge = false;  // Declare `has_badge` as mutable
+        let badges = &reputation.badges;
         
-    //     let i = 0;
-    //     while (i < vector::length(badges)) {
-    //         let badge = vector::borrow(badges, i);
-    //         if (badge.name == required_badge && badge.level >= required_level) {
-    //             has_badge = true;
-    //             break
-    //         };
-    //         i = i + 1;
-    //     };
-        
-    //     assert!(has_badge, EBadgeNotEarned);
-    // }
+        let mut i = 0;  // Declare `i` as mutable
+        let len = vector::length(badges);
+
+        while (i < len) {
+            let badge = vector::borrow(badges, i);
+            if (badge.name == required_badge && badge.level >= required_level) {
+                has_badge = true;
+                break
+            };
+            i = i + 1;
+        };
+
+        assert!(has_badge, EBadgeNotEarned);
+    }
+
 
     public fun progress_learning_path(
         learning_path: &mut LearningPath,
