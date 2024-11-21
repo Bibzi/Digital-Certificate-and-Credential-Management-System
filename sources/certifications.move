@@ -195,7 +195,6 @@ module credentials::certifications {
 
     // Core certification functions
     public fun register_institution(
-        _platform: &Platform,
         registry: &mut InstitutionRegistry,
         name: String,
         ctx: &mut TxContext
@@ -272,7 +271,6 @@ module credentials::certifications {
         institution: &Institution,
         credential_title: String,
         holder_address: address,
-        achievement_data: LinkedTable<String, String>,
         ctx: &mut TxContext
     ) {
         assert!(verify_institution_exists(registry, institution.address), EInstitutionNotFound);
@@ -287,7 +285,7 @@ module credentials::certifications {
             holder: holder_address,
             issued_by: institution.address,
             issue_date: tx_context::epoch(ctx),
-            achievement_data
+            achievement_data: linked_table::new<String, String>(ctx)
         };
 
         let cert_id = object::id(&certificate);
@@ -328,8 +326,8 @@ module credentials::certifications {
     }
 
     public fun verify_certificate(
-        platform: &mut Platform,
         cert_registry: &CertificateRegistry,
+        platform: &mut Platform,
         holder: &mut CredentialHolder,
         certificate: &Certificate,
         notes: String,
