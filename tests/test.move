@@ -7,7 +7,7 @@ module credentials::test_games {
     use std::string::{Self};
 
     use credentials::helpers::init_test_helper;
-    use credentials::certifications::{Self as cert, Platform, InstitutionRegistry, CertificateRegistry, Institution};
+    use credentials::certifications::{Self as cert, Platform, InstitutionRegistry, CertificateRegistry, Institution, Certificate};
 
     const ADMIN: address = @0xe;
     const TEST_ADDRESS1: address = @0xee;
@@ -167,6 +167,26 @@ module credentials::test_games {
             ts::return_shared(platform);
             ts::return_shared(cert_registry);
         };
+
+        // // verify_certificate
+        // next_tx(scenario, TEST_ADDRESS1);
+        // {
+            
+        //     let cert_registry = ts::take_shared<CertificateRegistry>(scenario);
+        //     let platform = ts::take_shared<Platform>(scenario);
+        //     let mut certificate = ts::take_from_sender<Certificate>(scenario);
+        //     let mut credentholder = ts :: take_shared<CredentialHolder>(scenario)
+         
+
+        //     cert::verify_certificate(
+              
+
+        //     );
+
+        //     ts::return_to_sender(scenario, certificate);
+        //     ts::return_shared(platform);
+        //     ts::return_shared(cert_registry);
+        // };
 
         ts::end(scenario_test);
     }
