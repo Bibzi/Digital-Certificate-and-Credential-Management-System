@@ -7,7 +7,7 @@ module credentials::test_games {
     use std::string::{Self};
 
     use credentials::helpers::init_test_helper;
-
+    use credentials::certifications::{Self as cert, Platform, InstitutionRegistry, CertificateRegistry};
 
     const ADMIN: address = @0xe;
     const TEST_ADDRESS1: address = @0xee;
@@ -18,11 +18,19 @@ module credentials::test_games {
         let mut scenario_test = init_test_helper();
         let scenario = &mut scenario_test;
 
-        // create the voting shared object 
+        // test shared objects with init 
         next_tx(scenario, TEST_ADDRESS1);
         {
-          
+            let platfrom = ts::take_shared<Platform>(scenario);
+            let registry = ts::take_shared<InstitutionRegistry>(scenario);
+            let certificate_registry = ts::take_shared<CertificateRegistry>(scenario);
+
+            ts::return_shared(platfrom);
+            ts::return_shared(registry);
+            ts::return_shared(certificate_registry);
         };
+
+        
 
         ts::end(scenario_test);
     }
