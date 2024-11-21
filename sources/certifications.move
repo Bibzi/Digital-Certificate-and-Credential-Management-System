@@ -195,7 +195,6 @@ module credentials::certifications {
 
     // Core certification functions
     public fun register_institution(
-        _platform: &Platform,
         registry: &mut InstitutionRegistry,
         name: String,
         ctx: &mut TxContext

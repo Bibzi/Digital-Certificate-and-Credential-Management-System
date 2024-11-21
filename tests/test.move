@@ -30,7 +30,20 @@ module credentials::test_games {
             ts::return_shared(certificate_registry);
         };
 
+        // test shared objects with init 
+        next_tx(scenario, TEST_ADDRESS1);
+        {
+            let mut insitu = ts::take_shared<InstitutionRegistry>(scenario);
+            let name = string::utf8(b"address1");
+
+            cert::register_institution(&mut insitu, name, ts::ctx(scenario));
+
+            ts::return_shared(insitu);
+        };
+
         
+
+
 
         ts::end(scenario_test);
     }
