@@ -326,8 +326,8 @@ module credentials::certifications {
     }
 
     public fun verify_certificate(
-        platform: &mut Platform,
         cert_registry: &CertificateRegistry,
+        platform: &mut Platform,
         holder: &mut CredentialHolder,
         certificate: &Certificate,
         notes: String,
